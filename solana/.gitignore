@@ -1,0 +1,6 @@
+*.js
+*.abi
+*.so
+node_modules
+package-lock.json
+yarn.lock
