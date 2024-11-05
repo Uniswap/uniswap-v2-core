@@ -27,12 +27,20 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
     uint public price1CumulativeLast;
     uint public kLast; // reserve0 * reserve1, as of immediately after the most recent liquidity event
 
+    uint256 public feeRate = 3e15; // 0.3%
+    uint public lpMtRatio = 6; // 1/6
+
     uint private unlocked = 1;
     modifier lock() {
         require(unlocked == 1, 'UniswapV2: LOCKED');
         unlocked = 0;
         _;
         unlocked = 1;
+    }
+
+    modifier onlyFactory() {
+        require(msg.sender == factory, 'UniswapV2: FORBIDDEN');
+        _;
     }
 
     function getReserves() public view returns (uint112 _reserve0, uint112 _reserve1, uint32 _blockTimestampLast) {
@@ -46,6 +54,8 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
         require(success && (data.length == 0 || abi.decode(data, (bool))), 'UniswapV2: TRANSFER_FAILED');
     }
 
+    event FeeRateChange(uint256 feeRate);
+    event LpMtRatioChange(uint lpMtRatio);
     event Mint(address indexed sender, uint amount0, uint amount1);
     event Burn(address indexed sender, uint amount0, uint amount1, address indexed to);
     event Swap(
@@ -67,6 +77,21 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
         require(msg.sender == factory, 'UniswapV2: FORBIDDEN'); // sufficient check
         token0 = _token0;
         token1 = _token1;
+    }
+
+    // called by the feeTo address to set the fee rate
+    // feeRate decimal is 18
+    // initial feeRate is 0.3%
+    function setFeeRate(uint256 totalFeeRate) external onlyFactory {
+        require(totalFeeRate <= 1e18 && totalFeeRate > 0, 'UniswapV2: INVALID_FEE_RATE');
+        feeRate = totalFeeRate;
+        emit FeeRateChange(feeRate);
+    }
+
+    function setLpMtRatio(uint ratio) external onlyFactory {
+        require(ratio > 0, 'UniswapV2: INVALID_LP_MT_RATIO');
+        lpMtRatio = ratio;
+        emit LpMtRatioChange(lpMtRatio);
     }
 
     // update reserves and, on the first call per block, price accumulators
@@ -96,7 +121,7 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
                 uint rootKLast = Math.sqrt(_kLast);
                 if (rootK > rootKLast) {
                     uint numerator = totalSupply.mul(rootK.sub(rootKLast));
-                    uint denominator = rootK.mul(5).add(rootKLast);
+                    uint denominator = rootK.mul(lpMtRatio.sub(1)).add(rootKLast);
                     uint liquidity = numerator / denominator;
                     if (liquidity > 0) _mint(feeTo, liquidity);
                 }
@@ -177,9 +202,9 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
         uint amount1In = balance1 > _reserve1 - amount1Out ? balance1 - (_reserve1 - amount1Out) : 0;
         require(amount0In > 0 || amount1In > 0, 'UniswapV2: INSUFFICIENT_INPUT_AMOUNT');
         { // scope for reserve{0,1}Adjusted, avoids stack too deep errors
-        uint balance0Adjusted = balance0.mul(1000).sub(amount0In.mul(3));
-        uint balance1Adjusted = balance1.mul(1000).sub(amount1In.mul(3));
-        require(balance0Adjusted.mul(balance1Adjusted) >= uint(_reserve0).mul(_reserve1).mul(1000**2), 'UniswapV2: K');
+        uint balance0Adjusted = balance0.mul(1e18).sub(amount0In.mul(feeRate));
+        uint balance1Adjusted = balance1.mul(1e18).sub(amount1In.mul(feeRate));
+        require(balance0Adjusted.mul(balance1Adjusted) >= uint(_reserve0).mul(_reserve1).mul(1e36), 'UniswapV2: K');
         }
 
         _update(balance0, balance1, _reserve0, _reserve1);

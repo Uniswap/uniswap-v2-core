@@ -49,4 +49,6 @@ interface IUniswapV2Pair {
     function sync() external;
 
     function initialize(address, address) external;
+    function setFeeRate(uint256) external;
+    function setLpMtRatio(uint) external;
 }
