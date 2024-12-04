@@ -10,7 +10,7 @@ contract UniswapV2Factory is IUniswapV2Factory {
     mapping(address => mapping(address => mapping(uint256 => address))) public getPair; // getPair[token0][token1][feerate] || getPair[token1][token0][feerate]
     address[] public allPairs;
 
-    event PairCreated(address indexed token0, address indexed token1, address pair, uint feeRate, uint);
+    event PairCreated(address indexed token0, address indexed token1, address pair, uint256 feeRate, uint);
 
     constructor(address _feeToSetter) public {
         feeToSetter = _feeToSetter;
@@ -23,7 +23,7 @@ contract UniswapV2Factory is IUniswapV2Factory {
     function createPair(address tokenA, address tokenB, uint256 feeRate) external returns (address pair) {
         require(tokenA != tokenB, 'UniswapV2: IDENTICAL_ADDRESSES');
         (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
-        require(feeRate >= 0 && feeRate <= 1e18, 'UniswapV2: FEE_RATE_OVERFLOW');
+        require(feeRate >= 0 && feeRate <= 10000, 'UniswapV2: FEE_RATE_OVERFLOW');
         require(token0 != address(0), 'UniswapV2: ZERO_ADDRESS');
         require(getPair[token0][token1][feeRate] == address(0), 'UniswapV2: PAIR_EXISTS'); // single check is sufficient
         bytes memory bytecode = type(UniswapV2Pair).creationCode;

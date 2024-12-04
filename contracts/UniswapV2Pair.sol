@@ -27,7 +27,7 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
     uint public price1CumulativeLast;
     uint public kLast; // reserve0 * reserve1, as of immediately after the most recent liquidity event
 
-    uint256 public feeRate = 3e15; // 0.3%
+    uint256 public feeRate = 30; // 30/10000
     uint public lpMtRatio = 6; // 1/6
 
     uint private unlocked = 1;
@@ -80,10 +80,10 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
     }
 
     // called by the feeTo address to set the fee rate
-    // feeRate decimal is 18
+    // feeRate is a unit of ten thousandths
     // initial feeRate is 0.3%
     function setFeeRate(uint256 totalFeeRate) external onlyFactory {
-        require(totalFeeRate <= 1e18 && totalFeeRate > 0, 'UniswapV2: INVALID_FEE_RATE');
+        require(totalFeeRate <= 10000 && totalFeeRate > 0, 'UniswapV2: INVALID_FEE_RATE');
         feeRate = totalFeeRate;
         emit FeeRateChange(feeRate);
     }
@@ -202,9 +202,9 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
         uint amount1In = balance1 > _reserve1 - amount1Out ? balance1 - (_reserve1 - amount1Out) : 0;
         require(amount0In > 0 || amount1In > 0, 'UniswapV2: INSUFFICIENT_INPUT_AMOUNT');
         { // scope for reserve{0,1}Adjusted, avoids stack too deep errors
-        uint balance0Adjusted = balance0.mul(1e18).sub(amount0In.mul(feeRate));
-        uint balance1Adjusted = balance1.mul(1e18).sub(amount1In.mul(feeRate));
-        require(balance0Adjusted.mul(balance1Adjusted) >= uint(_reserve0).mul(_reserve1).mul(1e36), 'UniswapV2: K');
+        uint balance0Adjusted = balance0.mul(10000).sub(amount0In.mul(feeRate));
+        uint balance1Adjusted = balance1.mul(10000).sub(amount1In.mul(feeRate));
+        require(balance0Adjusted.mul(balance1Adjusted) >= uint(_reserve0).mul(_reserve1).mul(10000**2), 'UniswapV2: K');
         }
 
         _update(balance0, balance1, _reserve0, _reserve1);
