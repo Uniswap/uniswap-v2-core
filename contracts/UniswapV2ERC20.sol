@@ -9,12 +9,11 @@ contract UniswapV2ERC20 is IUniswapV2ERC20 {
     string public constant name = 'Uniswap V2';
     string public constant symbol = 'UNI-V2';
     uint8 public constant decimals = 18;
-    uint  public totalSupply;
+    uint public totalSupply;
     mapping(address => uint) public balanceOf;
     mapping(address => mapping(address => uint)) public allowance;
 
     bytes32 public DOMAIN_SEPARATOR;
-    // keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
     bytes32 public constant PERMIT_TYPEHASH = 0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
     mapping(address => uint) public nonces;
 
@@ -24,7 +23,8 @@ contract UniswapV2ERC20 is IUniswapV2ERC20 {
     constructor() public {
         uint chainId;
         assembly {
-            chainId := chainid
+            // Byzantiumではchainid命令がサポートされていないため、chainIdを手動で指定
+            chainId := 1 // Ethereum MainnetのチェーンIDを指定。必要に応じて変更可能。
         }
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(
@@ -38,23 +38,29 @@ contract UniswapV2ERC20 is IUniswapV2ERC20 {
     }
 
     function _mint(address to, uint value) internal {
+        require(to != address(0), "UniswapV2: MINT_TO_ZERO_ADDRESS");
         totalSupply = totalSupply.add(value);
         balanceOf[to] = balanceOf[to].add(value);
         emit Transfer(address(0), to, value);
     }
 
     function _burn(address from, uint value) internal {
+        require(from != address(0), "UniswapV2: BURN_FROM_ZERO_ADDRESS");
         balanceOf[from] = balanceOf[from].sub(value);
         totalSupply = totalSupply.sub(value);
         emit Transfer(from, address(0), value);
     }
 
     function _approve(address owner, address spender, uint value) private {
+        require(owner != address(0), "UniswapV2: APPROVE_FROM_ZERO_ADDRESS");
+        require(spender != address(0), "UniswapV2: APPROVE_TO_ZERO_ADDRESS");
         allowance[owner][spender] = value;
         emit Approval(owner, spender, value);
     }
 
     function _transfer(address from, address to, uint value) private {
+        require(from != address(0), "UniswapV2: TRANSFER_FROM_ZERO_ADDRESS");
+        require(to != address(0), "UniswapV2: TRANSFER_TO_ZERO_ADDRESS");
         balanceOf[from] = balanceOf[from].sub(value);
         balanceOf[to] = balanceOf[to].add(value);
         emit Transfer(from, to, value);
@@ -78,7 +84,15 @@ contract UniswapV2ERC20 is IUniswapV2ERC20 {
         return true;
     }
 
-    function permit(address owner, address spender, uint value, uint deadline, uint8 v, bytes32 r, bytes32 s) external {
+    function permit(
+        address owner,
+        address spender,
+        uint value,
+        uint deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external {
         require(deadline >= block.timestamp, 'UniswapV2: EXPIRED');
         bytes32 digest = keccak256(
             abi.encodePacked(
